@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kalkulator IPK</title>
+<meta name="theme-color" content="#14213D">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon-192.png">
+<style>
+:root{--bg:#eef2f7;--ink:#14213d;--card:#fff;--line:#d5dce6;--acc:#1f7a8c;--mute:#5b6b82}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1626;--ink:#e8edf5;--card:#17233a;--line:#2a3a56;--acc:#5cc3d6;--mute:#93a3bd}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+main{max-width:520px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:8px 0 12px}
+.hasil{background:var(--ink);color:var(--bg);border-radius:14px;padding:18px;margin-bottom:16px}
+.hasil b{display:block;font-size:48px;line-height:1.1}
+.hasil span{font-size:14px;opacity:.85}
+.sem{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.sem h2{font-size:16px;margin:0 0 8px;display:flex;justify-content:space-between;align-items:center}
+.sem h2 small{color:var(--mute);font-weight:400}
+.row{display:grid;grid-template-columns:1fr 62px 74px 36px;gap:6px;margin-bottom:6px}
+input,select{width:100%;font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);min-width:0}
+button{font:inherit;border:0;border-radius:8px;padding:9px 12px;background:var(--acc);color:#fff;cursor:pointer}
+button.x{background:transparent;color:var(--mute);padding:0;font-size:20px}
+button.alt{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+.bar{display:flex;gap:8px;flex-wrap:wrap}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.info{color:var(--mute);font-size:13px;margin-top:14px}
+</style>
+</head>
+<body>
+<main>
+<h1>Kalkulator IPK</h1>
+<div class="hasil"><span>IPK kumulatif</span><b id="ipk">0.00</b><span id="tot">0 SKS · 0 mata kuliah</span></div>
+<div id="list"></div>
+<div class="bar">
+<button id="addSem">Tambah semester</button>
+<button class="alt" id="reset">Hapus semua</button>
+</div>
+<p class="info">Skala 4.0: A=4, AB=3,5, B=3, BC=2,5, C=2, D=1, E=0. Data tersimpan di HP ini.</p>
+</main>
+<script>
+const N={A:4,AB:3.5,B:3,BC:2.5,C:2,D:1,E:0};
+let data;
+try{data=JSON.parse(localStorage.getItem('ipk'))}catch(e){}
+if(!data||!data.length)data=[{mk:[{n:'',s:'',g:'A'}]}];
+const save=()=>{try{localStorage.setItem('ipk',JSON.stringify(data))}catch(e){}};
+const f=x=>x.toFixed(2);
+function hitung(){
+  let tp=0,ts=0,n=0;
+  data.forEach((s,i)=>{
+    let p=0,k=0;
+    s.mk.forEach(m=>{const sks=parseFloat(m.s);if(sks>0){p+=sks*N[m.g];k+=sks;n++}});
+    tp+=p;ts+=k;
+    const el=document.getElementById('ips'+i);
+    if(el)el.textContent='IPS '+f(k?p/k:0)+' · '+k+' SKS';
+  });
+  document.getElementById('ipk').textContent=f(ts?tp/ts:0);
+  document.getElementById('tot').textContent=ts+' SKS · '+n+' mata kuliah';
+}
+function render(){
+  const L=document.getElementById('list');L.innerHTML='';
+  data.forEach((s,i)=>{
+    const d=document.createElement('div');d.className='sem';
+    d.innerHTML='<h2>Semester '+(i+1)+' <small id="ips'+i+'"></small></h2>';
+    s.mk.forEach((m,j)=>{
+      const r=document.createElement('div');r.className='row';
+      r.innerHTML='<input placeholder="Mata kuliah" value="'+m.n.replace(/"/g,'&quot;')+'">'+
+      '<input type="number" inputmode="decimal" min="0" placeholder="SKS" value="'+m.s+'">'+
+      '<select>'+Object.keys(N).map(g=>'<option'+(g==m.g?' selected':'')+'>'+g+'</option>').join('')+'</select>'+
+      '<button class="x" aria-label="Hapus">×</button>';
+      const [a,b,c,x]=r.children;
+      a.oninput=()=>{m.n=a.value;save()};
+      b.oninput=()=>{m.s=b.value;save();hitung()};
+      c.onchange=()=>{m.g=c.value;save();hitung()};
+      x.onclick=()=>{s.mk.splice(j,1);if(!s.mk.length&&data.length>1)data.splice(i,1);save();render()};
+      d.appendChild(r);
+    });
+    const add=document.createElement('button');add.className='alt';add.textContent='Tambah mata kuliah';
+    add.onclick=()=>{s.mk.push({n:'',s:'',g:'A'});save();render()};
+    d.appendChild(add);L.appendChild(d);
+  });
+  hitung();
+}
+document.getElementById('addSem').onclick=()=>{data.push({mk:[{n:'',s:'',g:'A'}]});save();render()};
+document.getElementById('reset').onclick=()=>{if(confirm('Hapus semua data?')){data=[{mk:[{n:'',s:'',g:'A'}]}];save();render()}};
+render();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js');
+</script>
+</body>
+</html>
